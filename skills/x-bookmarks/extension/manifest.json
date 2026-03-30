@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "X Fetcher",
+  "version": "1.0.0",
+  "description": "Fetch bookmarks and likes from X/Twitter as Markdown. No API tokens needed.",
+  "permissions": ["activeTab", "downloads", "scripting"],
+  "host_permissions": ["https://x.com/*", "https://twitter.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "X Fetcher"
+  },
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

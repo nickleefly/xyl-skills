@@ -1,90 +1,83 @@
 ---
 name: x-bookmarks
-description: Export X/Twitter bookmarks to markdown. Use when asked to fetch, export, or save bookmarks from X/Twitter.
+description: Fetch and save X/Twitter bookmarks, likes, and individual tweets as Markdown. No auth tokens needed. Use when asked to save, fetch, or export content from X/Twitter.
 ---
 
-# X Bookmarks Export Skill
+# X Bookmarks Fetcher
 
-Export X/Twitter bookmarks to markdown via `bird` CLI and `convert-bookmarks-to-md.js`.
+Save X/Twitter content as Markdown without API tokens or session cookies.
 
-## Prerequisites
+## Components
 
-- Install `bird`: `npm install -g @steipete/bird`
-- Log into X in browser (Safari/Chrome/Firefox) for cookie auth
+| Tool | Purpose |
+|------|---------|
+| `fetch-tweet.js` | CLI — fetch individual tweets by URL via FxTwitter API |
+| `extension/` | Chrome extension — scrape bookmarks/likes pages from DOM |
+| `filter-bookmarks.js` | Filter bookmark JSON by date (legacy) |
+| `convert-bookmarks-to-md.js` | Convert bookmark JSON to MD (legacy, for bird CLI users) |
 
-## Environment Setup
+## Quick Start
 
-Add these environment variables to `~/.bashrc`:
-
-```bash
-export AUTH_TOKEN="your_auth_token"
-export CT0="your_ct0"
-```
-
-After adding, reload with `source ~/.bashrc`.
-
-To get these values, open X.com in your browser, press F12, go to Application > Cookies, and find:
-- `auth_token` → use as AUTH_TOKEN
-- `ct0` → use as CT0
-
-## Usage
-
-### 1. Verify Setup
+### Fetch individual tweets (CLI)
 
 ```bash
-bird whoami --auth-token $AUTH_TOKEN --ct0 $CT0
+# Single tweet
+node skills/x-bookmarks/fetch-tweet.js --url https://x.com/user/status/123
+
+# Multiple tweets
+node skills/x-bookmarks/fetch-tweet.js --url URL1 --url URL2 -o my-bookmarks.md
+
+# From a file of URLs (one per line, # comments supported)
+node skills/x-bookmarks/fetch-tweet.js --file urls.txt
+
+# From stdin (pipe)
+pbpaste | node skills/x-bookmarks/fetch-tweet.js --stdin
+
+# Custom output file
+node skills/x-bookmarks/fetch-tweet.js --url URL -o weekly-digest.md
 ```
 
-### 2. Fetch Bookmarks
+### Fetch bookmarks/likes page (Chrome Extension)
 
-```bash
-# Fetch all bookmarks
-bird bookmarks --all --json --auth-token $AUTH_TOKEN --ct0 $CT0 > bookmarks.json
+1. Open `chrome://extensions` → enable Developer Mode
+2. Click "Load unpacked" → select `skills/x-bookmarks/extension/`
+3. Navigate to `x.com/i/bookmarks` or your likes page
+4. Click the extension icon → "Fetch from this page"
+5. A `.md` file will be downloaded automatically
 
-# Fetch specific count (e.g., last 50)
-bird bookmarks -n 50 --json --auth-token $AUTH_TOKEN --ct0 $CT0 > bookmarks.json
+## How It Works
 
-# Fetch from a specific folder/collection
-bird bookmarks --folder-id <id> --json --auth-token $AUTH_TOKEN --ct0 $CT0 > bookmarks.json
+- **CLI**: Uses [FxTwitter API](https://docs.fxtwitter.com/) — a free, public, no-auth API that returns tweet data in JSON format
+- **Extension**: Scrapes tweets from the DOM on x.com using `data-testid` selectors, then downloads via Chrome's `chrome.downloads` API
+- **No tokens, no cookies, no account freeze risk**
+
+## Output Format
+
+```markdown
+# X Bookmarks
+
+Fetched: 2026-03-30
+Source: bookmarks | likes | urls
+Total: 42 tweets
+
+---
+## @username — 2026-03-30
+
+Tweet text here...
+
+Likes: 42 | Retweets: 10 | Replies: 5 | Views: 12K
+[View tweet](https://x.com/user/status/123)
+
+![image](https://pbs.twimg.com/...)
+
+---
 ```
-
-### 3. Filter by Date (Optional)
-
-Bird CLI doesn't support date filtering, so use the filter script:
-
-```bash
-# Filter to bookmarks from a specific date onward
-node filter-bookmarks.js bookmarks.json --from 2026-01-15 -o filtered.json
-
-# Filter to a date range
-node filter-bookmarks.js bookmarks.json --from 2026-01-15 --to 2026-01-22 -o filtered.json
-
-# Filter up to a specific date
-node filter-bookmarks.js bookmarks.json --to 2026-01-20 -o filtered.json
-```
-
-### 4. Convert to Markdown
-
-```bash
-# Basic conversion
-node convert-bookmarks-to-md.js bookmarks.json
-
-# With date filtering (built-in)
-node convert-bookmarks-to-md.js bookmarks.json --from 2026-01-15 -o weekly.md
-
-# Full example with date range
-node convert-bookmarks-to-md.js bookmarks.json --from 2026-01-15 --to 2026-01-22 -o jan-week3.md
-```
-
-- Input defaults to `bookmarks.json`
-- Output defaults to `bookmarks-[YYYY-MM-DD].md`
-- Dates use `YYYY-MM-DD` format
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| Query ID error | Run `bird query-ids --fresh` |
-| Rate limit | Wait and retry with `-n <smaller_count>` |
-| Auth failed | Verify tokens in `~/.bashrc`, run `source ~/.bashrc` |
-| Cookies expired | Get fresh tokens from browser cookies |
+| Tweet returns 404 | Tweet may be deleted, private, or from a suspended account |
+| Extension can't find tweets | X may have changed their DOM structure — check `data-testid` selectors |
+| Rate limited | Wait a few minutes and retry |
+| Extension HUD not showing | Reload the extension in chrome://extensions |
