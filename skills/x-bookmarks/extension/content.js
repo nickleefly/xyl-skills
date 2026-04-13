@@ -8,7 +8,7 @@
 (function () {
   'use strict';
 
-  const SCROLL_DELAY_MS = 1200;
+  const SCROLL_DELAY_MS = 2000;
   const MAX_IDLE_ROUNDS = 3;
   const DEFAULT_MAX_ROUNDS = 20;
 
@@ -199,12 +199,28 @@
     createHUD();
     await scrollToTop();
 
+    // Collect whatever is visible at the top before first scroll
+    stats.saved += collectVisibleTweets();
+
     let consecutiveIdle = 0;
+    let prevScrollHeight = 0;
+
     for (let round = 0; round < maxRounds; round++) {
+      // Scroll down incrementally — target ~80% of viewport per step
+      const step = Math.floor(window.innerHeight * 0.8);
+      window.scrollBy(0, step);
+      await new Promise((r) => setTimeout(r, SCROLL_DELAY_MS));
+
+      // Collect after scroll and render
       const newCount = collectVisibleTweets();
       stats.rounds = round + 1;
 
-      if (newCount === 0) {
+      // Also track if page grew (new content loaded)
+      const currentHeight = document.documentElement.scrollHeight;
+      const pageGrew = currentHeight > prevScrollHeight;
+      prevScrollHeight = currentHeight;
+
+      if (newCount === 0 && !pageGrew) {
         consecutiveIdle++;
       } else {
         consecutiveIdle = 0;
@@ -218,7 +234,20 @@
         break;
       }
 
-      await scrollToBottom();
+      // If we've reached the bottom and page isn't growing, count as idle
+      const atBottom = (window.innerHeight + window.scrollY) >= (currentHeight - 100);
+      if (atBottom && !pageGrew) {
+        // Do a final full collect at the bottom
+        const finalCount = collectVisibleTweets();
+        stats.saved += finalCount;
+        if (finalCount === 0) {
+          consecutiveIdle++;
+          if (consecutiveIdle >= MAX_IDLE_ROUNDS) {
+            updateHUD(`Done: ${collected.size} tweets (reached bottom)`);
+            break;
+          }
+        }
+      }
     }
 
     const tweets = Array.from(collected.values());
