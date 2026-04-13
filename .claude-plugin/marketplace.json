@@ -11,8 +11,8 @@
   "plugins": [
     {
       "name": "x-bookmarks",
-      "description": "Export X/Twitter bookmarks to markdown using the bird CLI",
-      "source": "./skills/x-bookmarks",
+      "description": "Export X/Twitter bookmarks to markdown. No auth tokens needed.",
+      "source": "./",
       "strict": false
     }
   ]
